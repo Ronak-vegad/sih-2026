@@ -183,22 +183,23 @@ def hybrid_retrieve(query: str, top_k: int = TOP_K_RETRIEVAL) -> list[dict]:
     dense_similarities: list[float] = []
 
     try:
-        q_embedding = embed_query(query)
-        dense_result = col.query(
-            query_embeddings=[q_embedding],
-            n_results=min(top_k, col.count()),
-            include=["documents", "metadatas", "distances"],
-        )
-        dense_docs  = dense_result["documents"][0]
-        dense_metas = dense_result["metadatas"][0]
-        dense_ids   = dense_result["ids"][0]
-        # Cosine similarity = 1 - distance (collection uses hnsw:space=cosine)
-        dense_similarities = [1.0 - d for d in dense_result["distances"][0]]
+        from backend.config import NVIDIA_API_KEY
+        if NVIDIA_API_KEY:
+            q_embedding = embed_query(query)
+            dense_result = col.query(
+                query_embeddings=[q_embedding],
+                n_results=min(top_k, col.count()),
+                include=["documents", "metadatas", "distances"],
+            )
+            dense_docs  = dense_result["documents"][0]
+            dense_metas = dense_result["metadatas"][0]
+            dense_ids   = dense_result["ids"][0]
+            # Cosine similarity = 1 - distance (collection uses hnsw:space=cosine)
+            dense_similarities = [1.0 - d for d in dense_result["distances"][0]]
     except Exception as e:
         log.warning(
-            "Dense retrieval unavailable (%s: %s) — falling back to BM25 only. "
-            "Check NVIDIA_API_KEY and that '%s' is reachable.",
-            type(e).__name__, e, NIM_EMBED_MODEL,
+            "Dense retrieval unavailable (%s: %s) — falling back to BM25 only.",
+            type(e).__name__, e,
         )
 
     # ── BM25 retrieval ───────────────────────────────────────────
@@ -231,7 +232,7 @@ def hybrid_retrieve(query: str, top_k: int = TOP_K_RETRIEVAL) -> list[dict]:
     # Normalised BM25 score, used as a stand-in similarity for keyword-only hits
     bm25_max = float(bm25_scores[bm25_top_indices[0]]) if bm25_top_indices else 0.0
     bm25_sim = {
-        _bm25_corpus[i][0]: (float(bm25_scores[i]) / bm25_max if bm25_max > 0 else 0.0)
+        _bm25_corpus[i][0]: (0.85 * (float(bm25_scores[i]) / bm25_max) if bm25_max > 0 else 0.0)
         for i in bm25_top_indices
     }
 
@@ -241,7 +242,7 @@ def hybrid_retrieve(query: str, top_k: int = TOP_K_RETRIEVAL) -> list[dict]:
             doc_text, meta, sim = id_to_dense[chunk_id]
         elif chunk_id in id_to_bm25:
             doc_text, meta = id_to_bm25[chunk_id]
-            # Without embeddings, a strong keyword hit still carries signal.
+            # Without embeddings, BM25 top matches provide solid similarity signal
             sim = bm25_sim.get(chunk_id, 0.0) if not dense_ids else 0.0
         else:
             continue
