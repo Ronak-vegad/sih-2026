@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BIS Intelligent Assistant — AI for Indian Standards &amp; Certification</title>
+  <meta name="description" content="AI-powered assistant for Bureau of Indian Standards (BIS) — find applicable Indian Standards, certification requirements, hallmarking info, and QCO guidance. Every answer grounded in official BIS sources." />
+  <meta name="theme-color" content="#F9F8F4" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232D3A31'/%3E%3Ctext x='16' y='22' font-family='Georgia,serif' font-size='13' font-weight='700' fill='%23F9F8F4' text-anchor='middle'%3EBIS%3C/text%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600;1,700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <script src="icons.js"></script>
+
+  <a href="#main" class="skip-link">Skip to content</a>
+
+  <!-- Paper grain texture overlay -->
+  <div class="paper-grain" aria-hidden="true"></div>
+
+  <!-- Navigation -->
+  <nav class="nav" id="main-nav">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo" aria-label="BIS Intelligent Assistant — home">
+        <span class="logo-mark">BIS</span>
+        <span class="logo-text">Intelligent Assistant</span>
+      </a>
+      <div class="nav-links">
+        <a href="index.html" class="nav-link active">Home</a>
+        <a href="#features" class="nav-link">Capabilities</a>
+        <a href="#how-it-works" class="nav-link">How it works</a>
+        <a href="#faq" class="nav-link">FAQ</a>
+        <a href="https://www.bis.gov.in" target="_blank" rel="noopener" class="nav-link nav-link--external">
+          BIS Official <svg class="icon icon--xs"><use href="#i-external"/></svg>
+        </a>
+      </div>
+      <a href="chat.html" class="btn btn-primary nav-cta" id="nav-cta-btn">
+        <svg class="icon icon--sm"><use href="#i-message"/></svg> Ask a Question
+      </a>
+      <button class="nav-hamburger" id="hamburger-btn" aria-label="Toggle menu" aria-expanded="false" aria-controls="mobile-menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+    <div class="nav-mobile" id="mobile-menu">
+      <a href="index.html" class="mobile-link"><svg class="icon icon--sm"><use href="#i-home"/></svg> Home</a>
+      <a href="#features" class="mobile-link"><svg class="icon icon--sm"><use href="#i-layers"/></svg> Capabilities</a>
+      <a href="#how-it-works" class="mobile-link"><svg class="icon icon--sm"><use href="#i-route"/></svg> How it works</a>
+      <a href="#faq" class="mobile-link"><svg class="icon icon--sm"><use href="#i-info"/></svg> FAQ</a>
+      <a href="https://www.bis.gov.in" target="_blank" rel="noopener" class="mobile-link">
+        <svg class="icon icon--sm"><use href="#i-external"/></svg> BIS Official
+      </a>
+      <a href="chat.html" class="btn btn-primary" style="margin-top:1rem;">
+        <svg class="icon icon--sm"><use href="#i-message"/></svg> Ask a Question
+      </a>
+    </div>
+  </nav>
+
+  <main id="main">
+  <!-- Hero -->
+  <section class="hero" id="hero">
+    <div class="container">
+      <div class="hero-content">
+        <span class="hero-eyebrow">
+          <svg class="icon icon--sm"><use href="#i-sparkles"/></svg>
+          Grounded in official BIS sources
+        </span>
+        <h1 class="hero-headline">
+          Your <em>trusted guide</em> to<br />Indian Standards &amp; Certification
+        </h1>
+        <p class="hero-sub">
+          Instantly find applicable Indian Standards, certification routes,
+          hallmarking procedures and QCO coverage — every answer built only from
+          official BIS documents, with the source shown. No guesswork. No invented
+          standard numbers.
+        </p>
+        <div class="hero-actions">
+          <a href="chat.html" class="btn btn-primary btn-large" id="hero-chat-btn">
+            Start Asking <svg class="icon icon--sm"><use href="#i-arrow-right"/></svg>
+          </a>
+          <a href="#how-it-works" class="btn btn-secondary btn-large">
+            <svg class="icon icon--sm"><use href="#i-route"/></svg> How it works
+          </a>
+        </div>
+        <ul class="hero-trust">
+          <li class="trust-pill"><svg class="icon icon--xs"><use href="#i-check"/></svg> Official BIS documents only</li>
+          <li class="trust-pill"><svg class="icon icon--xs"><use href="#i-check"/></svg> Every answer cites its source</li>
+          <li class="trust-pill"><svg class="icon icon--xs"><use href="#i-check"/></svg> Unverified IS numbers auto-removed</li>
+        </ul>
+      </div>
+
+      <div class="hero-visual">
+        <div class="hero-card">
+          <div class="hero-card-tag">
+            <svg class="icon icon--xs"><use href="#i-message"/></svg> Live example
+          </div>
+
+          <div class="hero-turn hero-turn--user">
+            <span class="hero-avatar hero-avatar--user"><svg class="icon icon--sm"><use href="#i-user"/></svg></span>
+            <p class="hero-card-q">What standard applies to LED bulbs in India?</p>
+          </div>
+
+          <div class="hero-card-divider"></div>
+
+          <div class="hero-turn">
+            <span class="hero-avatar hero-avatar--bot"><svg class="icon icon--sm"><use href="#i-bot"/></svg></span>
+            <div>
+              <p class="hero-card-a">
+                LED lamps for general lighting are covered under <strong>IS 16102 (Part 1)</strong>
+                and fall under the <strong>Compulsory Registration Scheme (CRS)</strong>. Manufacturers
+                must hold BIS registration before selling in India.
+              </p>
+              <div class="hero-card-meta">
+                <span class="mini-badge"><svg class="icon icon--xs"><use href="#i-grid"/></svg> Structured QCO lookup</span>
+                <span class="mini-badge mini-badge--ok"><svg class="icon icon--xs"><use href="#i-check-circle"/></svg> 92% match</span>
+              </div>
+              <div class="hero-card-source">
+                <span class="source-pill"><svg class="icon icon--xs"><use href="#i-file-badge"/></svg> Products Under Compulsory Certification</span>
+                <span class="source-pill"><svg class="icon icon--xs"><use href="#i-file-badge"/></svg> LED Lights QCO</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats band -->
+  <section class="stats-band" aria-label="System guarantees">
+    <div class="container stats-grid">
+      <div class="stat reveal">
+        <svg class="icon icon--lg stat-icon"><use href="#i-database"/></svg>
+        <span class="stat-value">100%</span>
+        <span class="stat-label">Answers built from retrieved BIS text</span>
+      </div>
+      <div class="stat reveal">
+        <svg class="icon icon--lg stat-icon"><use href="#i-route"/></svg>
+        <span class="stat-value">3</span>
+        <span class="stat-label">Query routes: QCO lookup, procedure, FAQ</span>
+      </div>
+      <div class="stat reveal">
+        <svg class="icon icon--lg stat-icon"><use href="#i-search"/></svg>
+        <span class="stat-value">2-way</span>
+        <span class="stat-label">Hybrid retrieval: BM25 + semantic vectors</span>
+      </div>
+      <div class="stat reveal">
+        <svg class="icon icon--lg stat-icon"><use href="#i-shield-check"/></svg>
+        <span class="stat-value">0</span>
+        <span class="stat-label">Unverified IS numbers allowed through</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Feature cards -->
+  <section class="features" id="features">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-eyebrow">
+          <svg class="icon icon--sm"><use href="#i-layers"/></svg> What I can help with
+        </span>
+        <h2 class="section-title">Six ways this assistant <em>serves you</em></h2>
+        <p class="section-sub">Built for manufacturers, importers, jewellers, students and everyday consumers.</p>
+      </div>
+      <div class="feature-grid">
+        <article class="feature-card reveal">
+          <div class="feature-icon"><svg class="icon"><use href="#i-zap"/></svg></div>
+          <h3>Applicable Standards</h3>
+          <p>Find which IS standard applies to your product — from LED lamps to toys, cement to cables.</p>
+        </article>
+        <article class="feature-card feature-card--offset reveal">
+          <div class="feature-icon"><svg class="icon"><use href="#i-clipboard-check"/></svg></div>
+          <h3>Certification Guidance</h3>
+          <p>Step-by-step routes through BIS certification: ISI Mark (Scheme I), CRS, FMCS and more.</p>
+        </article>
+        <article class="feature-card reveal">
+          <div class="feature-icon"><svg class="icon"><use href="#i-gem"/></svg></div>
+          <h3>Hallmarking Information</h3>
+          <p>Gold &amp; silver hallmarking explained — HUID, A&amp;H centres, jeweller registration, charges.</p>
+        </article>
+        <article class="feature-card feature-card--offset reveal">
+          <div class="feature-icon"><svg class="icon"><use href="#i-file-badge"/></svg></div>
+          <h3>QCO &amp; Scheme Lookup</h3>
+          <p>Check whether a product falls under a Quality Control Order and which scheme governs it.</p>
+        </article>
+        <article class="feature-card reveal">
+          <div class="feature-icon"><svg class="icon"><use href="#i-flask"/></svg></div>
+          <h3>Testing &amp; Surveillance</h3>
+          <p>Understand recognised labs, sample testing, surveillance audits and what conformity involves.</p>
+        </article>
+        <article class="feature-card feature-card--offset reveal">
+          <div class="feature-icon"><svg class="icon"><use href="#i-users"/></svg></div>
+          <h3>Consumer Support</h3>
+          <p>Plain-language help — verify an ISI mark or HUID, and know where to raise a complaint.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section class="how-it-works" id="how-it-works">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-eyebrow">
+          <svg class="icon icon--sm"><use href="#i-cpu"/></svg> Transparent by design
+        </span>
+        <h2 class="section-title">How <em>answers are built</em></h2>
+        <p class="section-sub">A retrieval-augmented pipeline with a hard guardrail at the end.</p>
+      </div>
+
+      <div class="steps">
+        <div class="step reveal">
+          <div class="step-head">
+            <span class="step-num">01</span>
+            <span class="step-icon"><svg class="icon"><use href="#i-filter"/></svg></span>
+          </div>
+          <h3>Your question is classified</h3>
+          <p>The router decides whether you need a deterministic QCO/standard lookup, a procedure explanation, or a general FAQ answer — and refuses anything outside BIS scope.</p>
+        </div>
+        <div class="step-connector" aria-hidden="true"></div>
+        <div class="step reveal">
+          <div class="step-head">
+            <span class="step-num">02</span>
+            <span class="step-icon"><svg class="icon"><use href="#i-search"/></svg></span>
+          </div>
+          <h3>Official sources are retrieved</h3>
+          <p>Passages from BIS FAQs, QCO notifications and certification procedures are pulled using hybrid keyword (BM25) + semantic vector search, fused by reciprocal rank.</p>
+        </div>
+        <div class="step-connector" aria-hidden="true"></div>
+        <div class="step reveal">
+          <div class="step-head">
+            <span class="step-num">03</span>
+            <span class="step-icon"><svg class="icon"><use href="#i-shield-check"/></svg></span>
+          </div>
+          <h3>Answer is grounded &amp; verified</h3>
+          <p>The model writes <em>only</em> from retrieved context. Any IS number missing from the sources is stripped before you see it, and the exact documents used are listed.</p>
+        </div>
+      </div>
+
+      <div class="trust-box reveal">
+        <div class="trust-icon"><svg class="icon icon--lg"><use href="#i-shield-check"/></svg></div>
+        <p>
+          When confidence is low, the assistant says so instead of guessing — and points you to
+          <strong>bis.gov.in</strong> or the BIS CARE helpline
+          <a href="tel:18001114000"><strong>1800-11-4000</strong></a>.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="faq-section" id="faq">
+    <div class="container container--narrow">
+      <div class="section-header">
+        <span class="section-eyebrow"><svg class="icon icon--sm"><use href="#i-info"/></svg> Good to know</span>
+        <h2 class="section-title">Common <em>questions</em></h2>
+      </div>
+
+      <div class="faq-list">
+        <details class="faq-item reveal">
+          <summary>
+            <span>Where does the information come from?</span>
+            <svg class="icon faq-chevron"><use href="#i-chevron-down"/></svg>
+          </summary>
+          <p>Public BIS material — FAQ pages, certification and hallmarking procedure documents, and Quality Control Order notifications — collected and indexed offline. Product-to-standard mappings are additionally kept in a structured table so they can be answered deterministically.</p>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>
+            <span>Can it invent an IS standard number?</span>
+            <svg class="icon faq-chevron"><use href="#i-chevron-down"/></svg>
+          </summary>
+          <p>No. After generation, every IS number in the draft answer is checked against the retrieved text and the structured QCO records. Anything that doesn't appear there is replaced with a verification notice rather than shown to you.</p>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>
+            <span>Is this an official BIS service?</span>
+            <svg class="icon faq-chevron"><use href="#i-chevron-down"/></svg>
+          </summary>
+          <p>No. It is a prototype built for the Smart India Hackathon (problem statement SIH26107). It helps you find and understand official information faster, but regulatory decisions must always be confirmed against bis.gov.in or BIS CARE.</p>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>
+            <span>What happens if my question is out of scope?</span>
+            <svg class="icon faq-chevron"><use href="#i-chevron-down"/></svg>
+          </summary>
+          <p>The classifier detects non-BIS topics (tax, legal advice, general trivia) and declines politely with a pointer to the right channel, instead of producing a confident-sounding but unusable answer.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section" id="cta">
+    <div class="container">
+      <div class="cta-card">
+        <span class="cta-icon"><svg class="icon icon--lg"><use href="#i-sparkles"/></svg></span>
+        <h2>Ready to find your <em>answer?</em></h2>
+        <p>Ask about any BIS standard, certification route or hallmarking requirement and get a cited, verified answer in seconds.</p>
+        <a href="chat.html" class="btn btn-primary btn-large" id="cta-main-btn">
+          Open the Assistant <svg class="icon icon--sm"><use href="#i-arrow-right"/></svg>
+        </a>
+      </div>
+    </div>
+  </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-top">
+        <a href="index.html" class="nav-logo">
+          <span class="logo-mark">BIS</span>
+          <span class="logo-text">Intelligent Assistant</span>
+        </a>
+        <div class="footer-links">
+          <a href="chat.html"><svg class="icon icon--xs"><use href="#i-message"/></svg> Open chat</a>
+          <a href="https://www.bis.gov.in" target="_blank" rel="noopener"><svg class="icon icon--xs"><use href="#i-external"/></svg> bis.gov.in</a>
+          <a href="tel:18001114000"><svg class="icon icon--xs"><use href="#i-phone"/></svg> BIS CARE 1800-11-4000</a>
+        </div>
+      </div>
+      <div class="footer-inner">
+        <p class="footer-disclaimer">
+          <svg class="icon icon--sm"><use href="#i-alert-triangle"/></svg>
+          This assistant is an AI prototype built for the Smart India Hackathon (SIH26107).
+          Answers are drawn from official BIS documents but may not reflect the latest amendments.
+          Always confirm critical regulatory decisions at
+          <a href="https://www.bis.gov.in" target="_blank" rel="noopener">bis.gov.in</a>.
+        </p>
+        <p class="footer-copy">BIS Intelligent Assistant &copy; 2026 — SIH26107</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

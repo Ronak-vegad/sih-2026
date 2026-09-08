@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chat — BIS Intelligent Assistant</title>
+  <meta name="description" content="Chat with the BIS AI assistant to find Indian Standards, certification requirements, QCO coverage and hallmarking information." />
+  <meta name="theme-color" content="#F9F8F4" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232D3A31'/%3E%3Ctext x='16' y='22' font-family='Georgia,serif' font-size='13' font-weight='700' fill='%23F9F8F4' text-anchor='middle'%3EBIS%3C/text%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600;1,700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="chat-page">
+  <script src="icons.js"></script>
+
+  <div class="paper-grain" aria-hidden="true"></div>
+
+  <!-- Mobile backdrop -->
+  <div class="sidebar-backdrop" id="sidebar-backdrop" hidden></div>
+
+  <!-- Sidebar -->
+  <aside class="chat-sidebar" id="chat-sidebar" aria-label="Assistant sidebar">
+    <div class="sidebar-header">
+      <a href="index.html" class="sidebar-logo" aria-label="Back to home">
+        <span class="logo-mark">BIS</span>
+        <span class="logo-text">Assistant</span>
+      </a>
+      <button class="icon-btn sidebar-close" id="sidebar-close-btn" aria-label="Close sidebar">
+        <svg class="icon"><use href="#i-x"/></svg>
+      </button>
+    </div>
+
+    <div class="sidebar-section">
+      <button class="new-chat-btn" id="new-chat-btn">
+        <svg class="icon icon--sm"><use href="#i-plus"/></svg> New conversation
+      </button>
+    </div>
+
+    <div class="sidebar-section sidebar-scroll">
+      <p class="sidebar-label"><svg class="icon icon--xs"><use href="#i-sparkles"/></svg> Try asking</p>
+
+      <p class="starter-group">Standards &amp; QCO</p>
+      <div class="starters">
+        <button class="starter-btn" data-q="What standard applies to LED bulbs in India?">
+          <svg class="icon icon--sm"><use href="#i-lightbulb"/></svg> <span>LED bulb standard?</span>
+        </button>
+        <button class="starter-btn" data-q="What standard applies to safety helmets for two-wheeler riders?">
+          <svg class="icon icon--sm"><use href="#i-hard-hat"/></svg> <span>Helmet standard?</span>
+        </button>
+        <button class="starter-btn" data-q="What is the IS standard for ordinary portland cement?">
+          <svg class="icon icon--sm"><use href="#i-building"/></svg> <span>Cement standard?</span>
+        </button>
+        <button class="starter-btn" data-q="Which products require mandatory BIS certification?">
+          <svg class="icon icon--sm"><use href="#i-list"/></svg> <span>Mandatory certification list</span>
+        </button>
+      </div>
+
+      <p class="starter-group">Certification process</p>
+      <div class="starters">
+        <button class="starter-btn" data-q="How do I apply for BIS product certification under Scheme I?">
+          <svg class="icon icon--sm"><use href="#i-file-pen"/></svg> <span>Apply for certification</span>
+        </button>
+        <button class="starter-btn" data-q="What is the ISI mark and how does it work?">
+          <svg class="icon icon--sm"><use href="#i-star"/></svg> <span>What is the ISI Mark?</span>
+        </button>
+        <button class="starter-btn" data-q="How does a foreign manufacturer get BIS certification under FMCS?">
+          <svg class="icon icon--sm"><use href="#i-globe"/></svg> <span>FMCS for foreign makers</span>
+        </button>
+      </div>
+
+      <p class="starter-group">Hallmarking</p>
+      <div class="starters">
+        <button class="starter-btn" data-q="How do I get hallmarking done for gold jewellery?">
+          <svg class="icon icon--sm"><use href="#i-gem"/></svg> <span>Hallmarking procedure</span>
+        </button>
+        <button class="starter-btn" data-q="What is HUID in hallmarked gold jewellery and how do I verify it?">
+          <svg class="icon icon--sm"><use href="#i-search"/></svg> <span>What is HUID?</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="sidebar-section sidebar-stats">
+      <p class="sidebar-label"><svg class="icon icon--xs"><use href="#i-cpu"/></svg> Knowledge base</p>
+      <div class="stat-row">
+        <span><svg class="icon icon--xs"><use href="#i-layers"/></svg> Indexed chunks</span>
+        <b id="stat-chunks">—</b>
+      </div>
+      <div class="stat-row">
+        <span><svg class="icon icon--xs"><use href="#i-grid"/></svg> QCO records</span>
+        <b id="stat-qco">—</b>
+      </div>
+      <div class="stat-row">
+        <span><svg class="icon icon--xs"><use href="#i-bot"/></svg> Model</span>
+        <b id="stat-model">—</b>
+      </div>
+    </div>
+
+    <div class="sidebar-section sidebar-trust">
+      <div class="trust-item"><svg class="icon icon--xs"><use href="#i-shield-check"/></svg> Official BIS documents only</div>
+      <div class="trust-item"><svg class="icon icon--xs"><use href="#i-file-badge"/></svg> Every answer shows its source</div>
+      <div class="trust-item"><svg class="icon icon--xs"><use href="#i-alert-triangle"/></svg> Low-confidence replies flagged</div>
+    </div>
+
+    <div class="sidebar-footer">
+      <a href="https://www.bis.gov.in" target="_blank" rel="noopener" class="sidebar-link">
+        <svg class="icon icon--xs"><use href="#i-external"/></svg> BIS Official Site
+      </a>
+      <a href="tel:18001114000" class="sidebar-helpline">
+        <svg class="icon icon--xs"><use href="#i-phone"/></svg> BIS CARE 1800-11-4000
+      </a>
+    </div>
+  </aside>
+
+  <!-- Main chat area -->
+  <main class="chat-main" id="chat-main">
+    <!-- Top bar -->
+    <header class="chat-topbar">
+      <button class="icon-btn topbar-menu-btn" id="sidebar-open-btn" aria-label="Open sidebar">
+        <svg class="icon"><use href="#i-menu"/></svg>
+      </button>
+
+      <div class="topbar-title">
+        <svg class="icon topbar-logo-icon"><use href="#i-bot"/></svg>
+        <span>BIS Intelligent Assistant</span>
+      </div>
+
+      <div class="status-chip" id="status-chip" title="Backend connection status">
+        <span class="topbar-dot" id="status-dot"></span>
+        <span id="status-text">Connecting…</span>
+      </div>
+
+      <button class="topbar-clear-btn" id="clear-chat-btn" title="Clear conversation">
+        <svg class="icon icon--sm"><use href="#i-rotate"/></svg> <span>Clear</span>
+      </button>
+    </header>
+
+    <!-- Messages -->
+    <div class="chat-messages" id="chat-messages" role="log" aria-live="polite" aria-relevant="additions text">
+      <!-- Welcome message -->
+      <div class="message message--bot" id="welcome-msg">
+        <div class="message-avatar"><svg class="icon icon--sm"><use href="#i-bot"/></svg></div>
+        <div class="message-bubble">
+          <p><strong>Namaste!</strong> I'm the BIS Intelligent Assistant — here to help you navigate Bureau of Indian Standards regulations.</p>
+          <p>Ask me about applicable Indian Standards, certification routes (ISI Mark, CRS, FMCS), hallmarking procedures, or QCO coverage. Answers come only from official BIS documents, with sources shown.</p>
+          <div class="welcome-grid">
+            <button class="inline-starter" data-q="What standard applies to LED bulbs in India?">
+              <svg class="icon icon--sm"><use href="#i-lightbulb"/></svg>
+              <span><b>LED bulb standard</b>Which IS applies &amp; is it mandatory?</span>
+            </button>
+            <button class="inline-starter" data-q="How do I apply for BIS product certification under Scheme I?">
+              <svg class="icon icon--sm"><use href="#i-clipboard-check"/></svg>
+              <span><b>Certification process</b>Steps to get the ISI Mark</span>
+            </button>
+            <button class="inline-starter" data-q="How do I get hallmarking done for gold jewellery?">
+              <svg class="icon icon--sm"><use href="#i-gem"/></svg>
+              <span><b>Hallmarking</b>Jeweller registration &amp; HUID</span>
+            </button>
+            <button class="inline-starter" data-q="How can a consumer verify an ISI mark and file a complaint?">
+              <svg class="icon icon--sm"><use href="#i-users"/></svg>
+              <span><b>Consumer help</b>Verify a mark, raise a complaint</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Typing indicator lives in the message flow so it scrolls naturally -->
+      <div class="typing-indicator" id="typing-indicator" hidden>
+        <div class="message-avatar"><svg class="icon icon--sm"><use href="#i-bot"/></svg></div>
+        <div class="typing-body">
+          <div class="typing-dots"><span></span><span></span><span></span></div>
+          <span class="typing-label" id="typing-label">Searching official BIS sources…</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input area -->
+    <div class="chat-input-area">
+      <div class="input-wrapper">
+        <textarea
+          id="chat-input"
+          class="chat-textarea"
+          placeholder="Ask about IS standards, certification, hallmarking, QCOs…"
+          rows="1"
+          maxlength="1000"
+          aria-label="Type your question"
+        ></textarea>
+        <span class="char-count" id="char-count" aria-hidden="true">0/1000</span>
+        <button class="send-btn" id="send-btn" aria-label="Send message" disabled>
+          <svg class="icon" id="send-icon"><use href="#i-send"/></svg>
+        </button>
+      </div>
+      <p class="input-hint">
+        <span><svg class="icon icon--xs"><use href="#i-keyboard"/></svg> <b>Enter</b> to send · <b>Shift + Enter</b> for a new line</span>
+        <span class="input-hint-sep" aria-hidden="true">·</span>
+        <span><svg class="icon icon--xs"><use href="#i-alert-triangle"/></svg>
+          AI-generated from official BIS documents — verify at
+          <a href="https://www.bis.gov.in" target="_blank" rel="noopener">bis.gov.in</a>
+        </span>
+      </p>
+    </div>
+  </main>
+
+  <!-- Copy toast -->
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="chat.js"></script>
+</body>
+</html>

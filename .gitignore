@@ -1,0 +1,52 @@
+# ── Python ────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.spec
+
+# ── Virtual environment ───────────────────────────────────────
+venv/
+.venv/
+env/
+ENV/
+
+# ── Environment / Secrets (NEVER commit API keys) ─────────────
+.env
+!.env.example
+
+# ── Generated / scraped data (too large, rebuilt by scripts) ──
+data/pdfs/
+data/chroma_db/
+data/raw_documents.json
+data/qco_structured.db
+data/qco_structured.csv
+data/*.log
+data/supplement.log
+data/scraper.log
+data/failed_urls.log
+
+# Keep the data/ directory itself tracked (for README reference)
+!data/.gitkeep
+
+# ── IDE & OS ──────────────────────────────────────────────────
+.vscode/
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Logs ──────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Temp / scratch ────────────────────────────────────────────
+inspect_data.py
+*.tmp
+*.bak
