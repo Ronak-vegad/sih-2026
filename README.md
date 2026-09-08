@@ -155,8 +155,6 @@ python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
 python -m http.server 3000 --directory frontend
 ```
 
-Open 👉 **http://localhost:3000/chat.html**
-
 ---
 
 ## API Endpoints
