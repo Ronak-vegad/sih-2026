@@ -39,9 +39,8 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:${PORT}/health || exit 1
 
-# Startup sequence:
-#   1. Scrape BIS website  → generates data/raw_documents.json
-#   2. Ingest + embed      → builds ChromaDB vector index  (needs GOOGLE_API_KEY)
-#   3. Start API server
-# Steps 1-2 are skipped on subsequent deploys if Render mounts a persistent disk.
-CMD sh -c "python -m scraper.bis_supplement && EMBED_BATCH_SLEEP=10 python -m backend.ingest && uvicorn backend.main:app --host 0.0.0.0 --port ${PORT} --workers 1"
+# Run scraper+ingest in background so uvicorn starts immediately.
+# Render scans for port binding — uvicorn must start FIRST or deploy times out.
+# The app returns graceful "not ready" errors while ingest runs (~20 min),
+# then answers normally once the ChromaDB index is built.
+CMD ["sh", "-c", "(python -m scraper.bis_supplement && EMBED_BATCH_SLEEP=10 python -m backend.ingest) & uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-10000} --workers 1"]
