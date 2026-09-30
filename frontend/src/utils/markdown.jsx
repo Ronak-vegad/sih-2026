@@ -204,7 +204,8 @@ function parseInlineFormatting(text) {
   if (!text) return null;
 
   // Split into tokens based on markdown links, bold, code, and IS numbers
-  const regex = /(\[[^\]]+\]\([^)]+\)|\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\bIS(?:\s+|\/)[A-Z0-9]+(?:\s*\(Part\s*\d+\))?(?::\s*\d{4})?\b)/g;
+  // Regex aligned with backend IS_NUMBER_PATTERN so badge highlights match the guardrail.
+  const regex = /(\[[^\]]+\]\([^)]+\)|\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\bIS(?:\/(?:IEC|ISO))?\s*\d{2,5}(?:\s*\(\s*Part\s*[0-9IVXivx]+\s*\))?(?:\s*[:\-]\s*\d{4})?\b)/g;
   const parts = text.split(regex);
 
   return parts.map((part, index) => {
@@ -253,8 +254,8 @@ function parseInlineFormatting(text) {
       );
     }
 
-    // Standard IS highlight badge (e.g. IS 16102, IS 694)
-    if (/^IS(?:\s+|\/)[A-Z0-9]+(?:\s*\(Part\s*\d+\))?(?::\s*\d{4})?$/i.test(part.trim())) {
+    // Standard IS highlight badge — pattern aligned with backend IS_NUMBER_PATTERN
+    if (/^IS(?:\/(?:IEC|ISO))?\s*\d{2,5}(?:\s*\(\s*Part\s*[0-9IVXivx]+\s*\))?(?:\s*[:\-]\s*\d{4})?$/i.test(part.trim())) {
       return (
         <span key={index} className="is-badge" title="Indian Standard Reference">
           {part}

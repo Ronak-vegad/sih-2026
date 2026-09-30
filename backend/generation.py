@@ -51,9 +51,7 @@ one line and point the user to bis.gov.in.
 - Every IS number you write must appear character-for-character in the context, including
   part and year if you state them. If the context gives only "IS 16102", do not write
   "IS 16102:2012".
-- If the context does not answer the question, reply exactly:
-  "I don't have enough verified information to answer this accurately. Please verify with the
-  official BIS website at bis.gov.in or call the BIS CARE helpline at 1800-11-4000."
+- If the context does not answer the question, say: "I don't have verified information about this in my sources. But I can help with BIS topics like Indian Standards (IS numbers), QCO/CRS mandatory certification, BIS certification procedures (ISI Mark, CRS, Hallmarking), or consumer queries. Visit [bis.gov.in](https://www.bis.gov.in) or call BIS CARE at 1800-11-4000 for official help."
 - Never transfer a standard from a similar-but-different product. If the context covers only
   a related product, name that product and say the asked-about item is not covered by your
   sources.
@@ -86,12 +84,16 @@ consumer. When the sources are silent, say so instead of guessing."""
 # ── Route-specific guidance ──────────────────────────────────────
 ROUTE_INSTRUCTIONS = {
     "structured_lookup": (
-        "This is a product → standard lookup. The structured QCO/product records are the "
-        "authoritative part of the context: quote the IS number, standard title, "
-        "mandatory/voluntary status and scheme exactly as recorded. If several products "
-        "match, use a compact markdown table (Product | IS Standard | Scheme | Status). If "
-        "the exact product is absent from those records, say clearly that it is not in your "
-        "QCO records instead of inferring from a similar product."
+        "This is a product → standard lookup. The structured product records are the "
+        "authoritative source for the IS number and product title: quote them exactly as "
+        "recorded. If several products match, use a compact markdown table.\n"
+        "Mandatory/voluntary status is a separate question with its own evidence rule. "
+        "Report a status ONLY for rows listed under 'CONFIRMED STATUS'. For rows under "
+        "'MANDATORY STATUS NOT ESTABLISHED', give the standard number and then say plainly "
+        "that your sources do not establish whether certification is mandatory for it, and "
+        "that the user must confirm on bis.gov.in. Never infer mandatory status from a "
+        "product appearing in an eligibility or procedural list. If the exact product is "
+        "absent, say so rather than inferring from a similar product."
     ),
     "procedure_rag": (
         "This is a process question. Give numbered steps in the order the context presents "
@@ -112,9 +114,14 @@ LOW_CONFIDENCE_NOTE = (
 )
 
 NOT_ENOUGH_INFO = (
-    "I don't have enough verified information to answer this accurately. "
-    "Please verify with the official BIS website at [bis.gov.in](https://www.bis.gov.in) "
-    "or call the BIS CARE helpline at **1800-11-4000**."
+    "I don't have verified information about this in my sources. 🙏\n\n"
+    "But if you have any questions related to **BIS (Bureau of Indian Standards)**, I'm here to help! For example:\n\n"
+    "- 🔍 **Which Indian Standard (IS) applies to a product?** *(e.g. \"What is the IS standard for LED bulbs?\")*\n"
+    "- ✅ **Is a product under mandatory QCO/CRS certification?** *(e.g. \"Is a helmet mandatory under BIS?\")*\n"
+    "- 📋 **How to get BIS certification?** *(ISI Mark, CRS, FMCS, Hallmarking)*\n"
+    "- 🪙 **Hallmarking of gold/silver jewellery** — HUID, purity grades, how to verify\n"
+    "- 📞 **Consumer complaints** — BIS CARE helpline: **1800-11-4000**\n\n"
+    "For official information, visit [bis.gov.in](https://www.bis.gov.in)."
 )
 
 
@@ -191,20 +198,66 @@ def build_context_block(chunks: list[dict]) -> str:
 
 
 def build_qco_context(qco_rows: list[dict]) -> str:
-    """Format structured QCO rows as a mini-table for the prompt."""
+    """
+    Format structured QCO rows for the prompt, separated by status provenance.
+
+    Rows are split into two blocks rather than one table, because the two carry
+    very different authority and merging them is what previously let
+    eligibility-list entries be presented as mandatory legal requirements:
+
+      * ESTABLISHED -- a real Quality Control Order or the Hallmarking
+        Regulation states the mandatory/voluntary status, so it may be quoted.
+      * STATUS NOT ESTABLISHED -- the product/standard pairing is verified, but
+        the citing document (e.g. the Simplified Procedure eligibility list)
+        says nothing about mandatory coverage. The model is told explicitly not
+        to infer one.
+    """
     if not qco_rows:
         return ""
-    lines = ["Structured QCO/Product Data (from BIS official records):"]
-    lines.append(f"{'Product':<45} {'IS Standard':<20} {'Scheme':<30} {'Mandatory?'}")
-    lines.append("-" * 110)
-    for r in qco_rows:
-        lines.append(
-            f"{r.get('product_name','')[:45]:<45} "
-            f"{r.get('is_standard_number',''):<20} "
-            f"{r.get('scheme_type','')[:30]:<30} "
-            f"{r.get('mandatory_or_voluntary','')}"
-        )
-    return "\n".join(lines)
+
+    established = [r for r in qco_rows if r.get("status_basis") == "established"]
+    unknown     = [r for r in qco_rows if r.get("status_basis") != "established"]
+
+    blocks: list[str] = []
+
+    if established:
+        lines = [
+            "VERIFIED PRODUCT STANDARDS WITH CONFIRMED STATUS",
+            "(a Quality Control Order establishes the status below — quote it as given):",
+            f"{'Product':<45} {'IS Standard':<20} {'Scheme':<28} Status",
+            "-" * 112,
+        ]
+        for r in established:
+            lines.append(
+                f"{str(r.get('product_name',''))[:45]:<45} "
+                f"{str(r.get('is_standard_number','')):<20} "
+                f"{str(r.get('scheme_type',''))[:28]:<28} "
+                f"{r.get('mandatory_or_voluntary','')}"
+            )
+            if r.get("qco_reference"):
+                lines.append(f"    order: {r['qco_reference']}")
+        blocks.append("\n".join(lines))
+
+    if unknown:
+        lines = [
+            "VERIFIED PRODUCT STANDARDS — MANDATORY STATUS NOT ESTABLISHED",
+            "(the product-to-standard pairing below is verified. The source document "
+            "does NOT state whether the product is under a mandatory Quality Control "
+            "Order. You MUST NOT say it is mandatory, compulsory, voluntary or exempt. "
+            "State that the status is not confirmed by your sources and must be checked "
+            "on bis.gov.in.):",
+            f"{'Product':<52} {'IS Standard':<20} Source",
+            "-" * 112,
+        ]
+        for r in unknown:
+            lines.append(
+                f"{str(r.get('product_name',''))[:52]:<52} "
+                f"{str(r.get('is_standard_number','')):<20} "
+                f"{str(r.get('qco_reference',''))[:36]}"
+            )
+        blocks.append("\n".join(lines))
+
+    return "\n\n".join(blocks)
 
 
 # ── Reasoning-trace stripper ─────────────────────────────────────
@@ -293,7 +346,9 @@ def generate_answer(
 
     # The reasoning toggle has to lead the system message for Nemotron to
     # answer directly instead of thinking out loud.
-    system_content = f"{THINKING_TOGGLE}\n\n{SYSTEM_PROMPT}"
+    system_content = (
+        f"{THINKING_TOGGLE}\n\n{SYSTEM_PROMPT}" if THINKING_TOGGLE else SYSTEM_PROMPT
+    )
 
     messages = (
         [{"role": "system", "content": system_content}]

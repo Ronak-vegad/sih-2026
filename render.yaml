@@ -2,12 +2,33 @@ services:
   - type: web
     name: bis-chatbot-backend
     env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    region: singapore          # closest region to India
     plan: free
     autoDeploy: true
+
+    # Step 1: install deps. Step 2: build the vector index before server starts.
+    # The ingest script is idempotent — safe to re-run on every deploy.
+    # EMBED_BATCH_SLEEP is lowered here; Render's network is fast enough that
+    # the free Gemini tier rarely 429s on a clean rebuild.
+    buildCommand: >
+      pip install -r requirements.txt &&
+      python -m scraper.bis_supplement &&
+      EMBED_BATCH_SLEEP=10 python -m backend.ingest
+
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT --workers 1
+
+    healthCheckPath: /health
+
     envVars:
       - key: GROQ_API_KEY
-        sync: false
+        sync: false               # set manually in Render dashboard
+      - key: GOOGLE_API_KEY
+        sync: false               # set manually in Render dashboard
       - key: NVIDIA_API_KEY
-        sync: false
+        sync: false               # optional — only needed for NVIDIA NIM
+      - key: EMBED_PROVIDER
+        value: gemini             # use Gemini for embeddings on Render
+      - key: ALLOW_ORIGIN
+        sync: false               # set to your Vercel frontend URL, e.g. https://bis-rag.vercel.app
+      - key: PYTHON_VERSION
+        value: "3.11.9"

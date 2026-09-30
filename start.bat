@@ -23,7 +23,7 @@ start "BIS Backend" cmd /k "cd /d %~dp0 && venv\Scripts\python.exe -m uvicorn ba
 timeout /t 3 /nobreak >nul
 
 echo  [2/2] Starting Frontend on http://localhost:3000 ...
-start "BIS Frontend" cmd /k "cd /d %~dp0 && venv\Scripts\python.exe -m http.server 3000 --directory frontend"
+start "BIS Frontend" cmd /k "cd /d %~dp0frontend && npm run dev"
 
 :: Wait another second then open the browser
 timeout /t 2 /nobreak >nul

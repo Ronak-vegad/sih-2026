@@ -5,22 +5,43 @@ import ChatInput from './ChatInput';
 import { Menu, RotateCcw, ShieldCheck } from 'lucide-react';
 import { streamChatQuery } from '../utils/api';
 
+const STORAGE_KEY = 'bis_chat_history';
+
+function loadHistory() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory(msgs) {
+  try {
+    // Keep last 100 messages to avoid blowing up storage
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(msgs.slice(-100)));
+  } catch {
+    // Storage quota exceeded — silently ignore
+  }
+}
+
 export default function ChatView({ initialQuery, onClearInitialQuery, healthStatus }) {
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState(() => loadHistory());
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [streamingMessage, setStreamingMessage] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const abortControllerRef = useRef(null);
+  // Keep a live ref to messages so callbacks always see latest history
+  const messagesRef = useRef(messages);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
 
-  // If initialQuery is passed (e.g. from Landing page search), trigger it
+  // Persist messages to localStorage whenever they change
   useEffect(() => {
-    if (initialQuery && initialQuery.trim().length >= 3) {
-      handleSend(initialQuery.trim());
-      onClearInitialQuery?.();
-    }
-  }, [initialQuery]);
+    saveHistory(messages);
+  }, [messages]);
+
 
   const handleSend = async (customQuery) => {
     const queryToSend = (customQuery || input).trim();
@@ -44,6 +65,7 @@ export default function ChatView({ initialQuery, onClearInitialQuery, healthStat
       confidence: 0,
       low_confidence: false,
       stripped_is: [],
+      feedback: null, // 'up' | 'down' | null
     };
     setStreamingMessage(currentBotMsg);
 
@@ -52,7 +74,7 @@ export default function ChatView({ initialQuery, onClearInitialQuery, healthStat
     try {
       await streamChatQuery({
         query: queryToSend,
-        history: messages,
+        history: messagesRef.current,
         onMeta: (meta) => {
           currentBotMsg = {
             ...currentBotMsg,
@@ -88,6 +110,7 @@ export default function ChatView({ initialQuery, onClearInitialQuery, healthStat
                 role: 'assistant',
                 content: `⚠️ ${err.message || 'Unable to fetch response from BIS backend.'}`,
                 sources: [],
+                feedback: null,
               },
             ]);
           }
@@ -108,6 +131,7 @@ export default function ChatView({ initialQuery, onClearInitialQuery, healthStat
             role: 'assistant',
             content: `⚠️ Error connecting to server: ${err.message}`,
             sources: [],
+            feedback: null,
           },
         ]);
       }
@@ -129,7 +153,27 @@ export default function ChatView({ initialQuery, onClearInitialQuery, healthStat
     handleStop();
     setMessages([]);
     setStreamingMessage(null);
+    localStorage.removeItem(STORAGE_KEY);
   };
+
+  // Allow child components to update feedback on a specific message index
+  const handleFeedback = (msgIndex, vote) => {
+    setMessages((prev) =>
+      prev.map((m, i) =>
+        i === msgIndex ? { ...m, feedback: m.feedback === vote ? null : vote } : m
+      )
+    );
+  };
+
+  // If initialQuery is passed (e.g. from Landing page search), trigger it.
+  // Placed after handleSend so it is always defined when the effect fires.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (initialQuery && initialQuery.trim().length >= 3) {
+      handleSend(initialQuery.trim());
+      onClearInitialQuery?.();
+    }
+  }, [initialQuery]);
 
   return (
     <div className="chat-layout">
@@ -175,6 +219,7 @@ export default function ChatView({ initialQuery, onClearInitialQuery, healthStat
           isLoading={isLoading}
           streamingMessage={streamingMessage}
           onSelectPrompt={(p) => handleSend(p)}
+          onFeedback={handleFeedback}
         />
 
         {/* Bottom Input Area */}

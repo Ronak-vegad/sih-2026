@@ -69,12 +69,28 @@ _OUT_OF_SCOPE_PATTERNS = [
     r"\b(who are you|your prompt|system prompt|ignore (?:all|previous) instructions)\b",
 ]
 
+# Pure greeting / chitchat — respond warmly without touching RAG.
+_GREETING_PATTERNS = [
+    r"^(hi+|hii+|hiii+|hello+|hey+|helo+|howdy|greetings|sup|yo)[\.!?]*$",
+    r"^(good\s+(morning|afternoon|evening|night))[\.!?]*$",
+    r"^(namaste|namaskar)[\.!?]*$",
+    r"^(thanks|thank\s+you|thank\s+u|thx|ty|tysm|ty\s+so\s+much)[\.!?]*$",
+    r"^(bye|goodbye|see\s+you|cya|take\s+care)[\.!?]*$",
+    r"^(ok|okay|sure|got\s+it|understood|alright|cool|great|nice|wow|awesome)[\.!?]*$",
+]
+
 
 def classify_query(query: str) -> str:
     """
-    Returns one of: 'structured_lookup', 'procedure_rag', 'faq_rag', 'out_of_scope'
+    Returns one of: 'greeting', 'structured_lookup', 'procedure_rag', 'faq_rag', 'out_of_scope'
     """
     q = query.lower().strip()
+
+    # Greetings are checked first — they must never fall through to RAG
+    for pat in _GREETING_PATTERNS:
+        if re.match(pat, q, re.I):
+            log.info("Classifier → greeting")
+            return "greeting"
 
     for pat in _OUT_OF_SCOPE_PATTERNS:
         if re.search(pat, q, re.I):

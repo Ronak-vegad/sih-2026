@@ -1,12 +1,13 @@
 import React, { useEffect, useRef } from 'react';
 import MessageItem from './MessageItem';
-import { ShieldCheck, ChevronRight, FileSearch } from 'lucide-react';
+import { ShieldCheck, ChevronRight } from 'lucide-react';
 
 export default function MessageList({
   messages,
   isLoading,
   streamingMessage,
   onSelectPrompt,
+  onFeedback,
 }) {
   const bottomRef = useRef(null);
 
@@ -75,12 +76,17 @@ export default function MessageList({
 
       {/* Render existing messages */}
       {messages.map((msg, idx) => (
-        <MessageItem key={idx} message={msg} />
+        <MessageItem
+          key={idx}
+          message={msg}
+          messageIndex={idx}
+          onFeedback={onFeedback}
+        />
       ))}
 
       {/* Render in-flight streaming message if present */}
       {streamingMessage && (
-        <MessageItem message={streamingMessage} />
+        <MessageItem message={streamingMessage} messageIndex={null} onFeedback={null} />
       )}
 
       {/* Loading indicator when waiting for first token */}

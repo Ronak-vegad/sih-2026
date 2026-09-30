@@ -45,6 +45,14 @@ _ELLIPTIC_START = re.compile(
 # Very short questions are almost always continuations ("how much?", "and silver?")
 _SHORT_QUERY_WORDS = 4
 
+# Pure greetings / chitchat — these MUST NOT be treated as follow-ups even
+# though they are short. Without this guard, "hii" (3 words) would inherit
+# topic terms from the previous turn and trigger a full RAG pipeline response.
+_GREETING_RE = re.compile(
+    r"^\s*(hi+|hii+|hello+|hey+|helo+|howdy|greetings|sup|what'?s up|good\s+(morning|afternoon|evening|night)|namaste|namaskar|thanks|thank\s+you|thx|ty|bye|goodbye|ok|okay|sure|cool|great|nice|wow|lol|hmm+|yep|yes|no|nope|got\s+it|got\s+that|understood|alright|cheers)[\.!?]*\s*$",
+    re.I,
+)
+
 # Conversational filler that carries no retrieval signal but survives
 # QCO_STOPWORDS (which was tuned for product lookups, not dialogue).
 _CARRY_NOISE = {
@@ -67,6 +75,11 @@ def needs_context(query: str, history: list[dict]) -> bool:
         return False
 
     q = query.strip()
+
+    # Greetings and chitchat are always self-contained — never inherit topic
+    if _GREETING_RE.match(q):
+        return False
+
     if _REFERENTIAL.search(q):
         return True
     if _ELLIPTIC_START.match(q):

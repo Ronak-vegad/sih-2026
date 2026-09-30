@@ -16,7 +16,9 @@ from backend.config import (
     TOP_K_RETRIEVAL, TOP_K_FINAL, SIM_THRESHOLD,
     BM25_WEIGHT, DENSE_WEIGHT, CHROMA_DIR,
     QCO_STOPWORDS, QCO_MAX_ROWS,
+    OLLAMA_EMBED_MODEL,
 )
+from backend.qco_quality import normalize, validate_rows
 
 log = logging.getLogger("bis.retrieval")
 
@@ -27,12 +29,38 @@ _bm25_corpus     = None   # list of (doc_text, metadata)
 
 
 def get_collection():
+    """
+    Open the collection matching the current embedding model, and verify it.
+
+    `verify_index_fingerprint` is the hard stop for embedding drift: querying
+    an index built by a different model yields plausible scores over irrelevant
+    passages, with nothing anywhere in the response to reveal the problem.
+    """
     global _collection
     if _collection is None:
         import chromadb
+        from backend.embeddings import (
+            collection_name, verify_index_fingerprint, IndexMismatchError,
+        )
+
         client = chromadb.PersistentClient(path=str(CHROMA_DIR))
-        _collection = client.get_collection("bis_docs")
-        log.info("ChromaDB collection loaded: %d chunks", _collection.count())
+        name = collection_name()
+
+        try:
+            collection = client.get_collection(name)
+        except Exception as exc:
+            available = [c.name for c in client.list_collections()]
+            raise IndexMismatchError(
+                f"No vector index named {name!r} for the current embedding "
+                f"model. Available collections: {available or 'none'}. "
+                f"Build it with: python scripts/reindex.py"
+            ) from exc
+
+        verify_index_fingerprint(collection)
+        _collection = collection
+        log.info(
+            "ChromaDB collection %r loaded: %d chunks", name, _collection.count()
+        )
     return _collection
 
 
@@ -59,10 +87,10 @@ def _build_bm25():
 
 def embed_query(query: str) -> list[float]:
     """
-    Embed a single query string via NVIDIA NIM.
+    Embed a single query string via Ollama (nomic-embed-text).
 
-    input_type="query" is essential: nv-embedqa-e5-v5 is asymmetric, and the
-    corpus was embedded as "passage".
+    nomic-embed-text is a symmetric model, so queries and passages share
+    the same embedding space — no input_type distinction needed.
     """
     return nim.embed_one(query, input_type="query")
 
@@ -71,8 +99,78 @@ def embed_query(query: str) -> list[float]:
 
 def qco_keywords(query: str) -> list[str]:
     """Meaningful product keywords from a query (stopwords removed)."""
-    words = re.findall(r"\b[\w/]{3,}\b", query.lower())
+    words = re.findall(r"\b[\w/]{3,}\b", normalize(query).lower())
     return [w for w in dict.fromkeys(words) if w not in QCO_STOPWORDS]
+
+
+# Cached quality report for the QCO table, surfaced on /health so a stale or
+# corrupt table is visible rather than silently answering user questions.
+_qco_quality_report: dict | None = None
+
+
+def qco_quality_report() -> dict:
+    """Row counts and rejection reasons for the structured QCO table."""
+    if _qco_quality_report is None:
+        _load_qco_rows()
+    return _qco_quality_report or {}
+
+
+_qco_rows_cache: list[dict] | None = None
+
+
+def _load_qco_rows() -> list[dict]:
+    """
+    Load and re-validate every QCO row once, then cache.
+
+    The table is rebuilt by `rebuild_qco.py`, which already applies this gate.
+    Re-applying it here is deliberate defence in depth: if the database on disk
+    predates the data-quality fix it will have no `extraction_method` column,
+    every row will be quarantined as untrusted, and the assistant will decline
+    to answer product-status questions instead of serving the off-by-one
+    corruption that shipped previously.
+    """
+    global _qco_rows_cache, _qco_quality_report
+    if _qco_rows_cache is not None:
+        return _qco_rows_cache
+
+    try:
+        conn = sqlite3.connect(QCO_DB_PATH)
+        conn.row_factory = sqlite3.Row
+        try:
+            raw = [dict(r) for r in conn.execute("SELECT * FROM qco_standards")]
+        finally:
+            conn.close()
+    except sqlite3.Error as e:
+        log.warning("QCO DB unavailable: %s", e)
+        _qco_rows_cache = []
+        _qco_quality_report = {"error": str(e), "accepted": 0, "rejected": 0}
+        return _qco_rows_cache
+
+    clean, rejected = validate_rows(raw)
+    _qco_rows_cache = clean
+    _qco_quality_report = {
+        "raw_rows": len(raw),
+        "accepted": len(clean),
+        "rejected": len(raw) - len(clean),
+        "rejection_reasons": rejected,
+        "status_established": sum(
+            1 for r in clean if r.get("status_basis") == "established"
+        ),
+    }
+
+    if rejected:
+        log.warning(
+            "QCO quality gate rejected %d of %d rows: %s",
+            len(raw) - len(clean), len(raw), rejected,
+        )
+    if raw and not clean:
+        log.error(
+            "Every QCO row was quarantined. The database is almost certainly "
+            "stale - run `python rebuild_qco.py` to rebuild it with verified "
+            "product/standard pairings."
+        )
+    log.info("QCO table loaded: %d usable rows of %d", len(clean), len(raw))
+    return _qco_rows_cache
 
 
 def qco_structured_lookup(query: str) -> list[dict]:
@@ -87,19 +185,23 @@ def qco_structured_lookup(query: str) -> list[dict]:
     if not keywords:
         return []
 
-    # An explicit "IS 1417" style reference is the strongest possible signal
-    is_refs = re.findall(r"\bis\s*(\d{2,5})", query.lower())
+    # An explicit "IS 1417" style reference is the strongest possible signal.
+    # \d{1,5} rather than \d{2,5}: 'IS 1' is a real standard (National Flag).
+    is_refs = re.findall(r"\bis\s*(\d{1,5})", normalize(query).lower())
 
-    conn = sqlite3.connect(QCO_DB_PATH)
-    conn.row_factory = sqlite3.Row
-
-    try:
-        rows = [dict(r) for r in conn.execute("SELECT * FROM qco_standards").fetchall()]
-    except sqlite3.Error as e:
-        log.warning("QCO DB query error: %s", e)
+    # Only quality-gated rows are ever considered.
+    rows = _load_qco_rows()
+    if not rows:
         return []
-    finally:
-        conn.close()
+
+    # Whole-word matchers. Substring matching was actively harmful here:
+    # 'led' matched "coupLED", "welDED", "instalLED" and "mouLDEd", so a query
+    # for LED bulbs surfaced pneumatic tyres and wheel rims instead of the
+    # curated LED lamp rows.
+    matchers = [
+        (kw, re.compile(rf"\b{re.escape(kw)}\b"))
+        for kw in keywords[:8]
+    ]
 
     scored: list[tuple[float, dict]] = []
     for row in rows:
@@ -109,19 +211,29 @@ def qco_structured_lookup(query: str) -> list[dict]:
         qco_ref = str(row.get("qco_reference", "")).lower()
 
         score = 0.0
-        for kw in keywords[:8]:
-            if kw in product:
+        for _kw, pattern in matchers:
+            if pattern.search(product):
                 score += 2.0
-            elif kw in title:
+            elif pattern.search(title):
                 score += 1.0
-            elif kw in std_no or kw in qco_ref:
+            elif pattern.search(std_no) or pattern.search(qco_ref):
                 score += 0.5
         for ref in is_refs:
-            if ref in std_no:
+            if re.search(rf"\b{re.escape(ref)}\b", std_no):
                 score += 5.0
 
-        if score > 0:
-            scored.append((score, row))
+        if score <= 0:
+            continue
+
+        # A row whose status is backed by a real Quality Control Order answers
+        # the question users actually ask ("is this mandatory?"), so it is
+        # preferred over an eligibility-list row of equal keyword strength.
+        if row.get("status_basis") == "established":
+            score += 1.5
+        if row.get("extraction_method") == "curated":
+            score += 0.5
+
+        scored.append((score, row))
 
     if not scored:
         log.info("QCO structured lookup for '%s' → 0 rows", query[:60])
@@ -183,19 +295,17 @@ def hybrid_retrieve(query: str, top_k: int = TOP_K_RETRIEVAL) -> list[dict]:
     dense_similarities: list[float] = []
 
     try:
-        from backend.config import NVIDIA_API_KEY
-        if NVIDIA_API_KEY:
-            q_embedding = embed_query(query)
-            dense_result = col.query(
-                query_embeddings=[q_embedding],
-                n_results=min(top_k, col.count()),
-                include=["documents", "metadatas", "distances"],
-            )
-            dense_docs  = dense_result["documents"][0]
-            dense_metas = dense_result["metadatas"][0]
-            dense_ids   = dense_result["ids"][0]
-            # Cosine similarity = 1 - distance (collection uses hnsw:space=cosine)
-            dense_similarities = [1.0 - d for d in dense_result["distances"][0]]
+        q_embedding = embed_query(query)
+        dense_result = col.query(
+            query_embeddings=[q_embedding],
+            n_results=min(top_k, col.count()),
+            include=["documents", "metadatas", "distances"],
+        )
+        dense_docs  = dense_result["documents"][0]
+        dense_metas = dense_result["metadatas"][0]
+        dense_ids   = dense_result["ids"][0]
+        # Cosine similarity = 1 - distance (collection uses hnsw:space=cosine)
+        dense_similarities = [1.0 - d for d in dense_result["distances"][0]]
     except Exception as e:
         log.warning(
             "Dense retrieval unavailable (%s: %s) — falling back to BM25 only.",

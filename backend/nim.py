@@ -1,21 +1,30 @@
 """
-Model layer — Groq for chat, NVIDIA NIM for embeddings.
+Model layer — Groq for chat, pluggable provider for embeddings.
 
-  chat(messages)              → Groq  (openai/gpt-oss-20b)
-  embed(texts, input_type)    → NVIDIA NIM  (nvidia/nemotron-3-embed-1b, 2048-dim)
+  chat(messages)              → Groq (llama-3.1-8b-instant)
+  embed(texts, input_type)    → backend.embeddings (Gemini by default)
 
-Both providers expose OpenAI-compatible endpoints, so the standard `openai`
-SDK is used for both. Two separate client instances keep the concerns apart.
+Groq uses the standard `openai` SDK pointed at its OpenAI-compatible endpoint.
+
+Embeddings used to be implemented inline here against Ollama, with the comment
+"nomic-embed-text is a symmetric model ... no input_type distinction needed".
+That was wrong on both counts: the model is prefix-conditioned, and Ollama is
+unreachable in deployment. Embeddings now live in backend/embeddings.py, which
+handles the document/query asymmetry explicitly per provider. These wrappers
+remain so existing call sites keep working.
 """
 
 import logging
 from typing import Literal
 
 from backend.config import (
-    NVIDIA_API_KEY, NIM_BASE_URL, NIM_EMBED_MODEL,
     GROQ_API_KEY, GROQ_BASE_URL, GROQ_CHAT_MODEL,
-    EMBED_TRUNCATE, EMBED_DIM,
-    CHAT_TEMPERATURE, CHAT_MAX_TOKENS,
+    CHAT_TEMPERATURE, CHAT_MAX_TOKENS, CHAT_TIMEOUT, CHAT_MAX_RETRIES,
+)
+from backend.embeddings import (
+    EmbeddingError,
+    embed as _embed_impl,
+    embed_one as _embed_one_impl,
 )
 
 log = logging.getLogger("bis.nim")
@@ -23,13 +32,13 @@ log = logging.getLogger("bis.nim")
 InputType = Literal["query", "passage"]
 
 
-class NIMError(RuntimeError):
-    """Raised when a model provider cannot be reached or is misconfigured."""
+# Kept as an alias so existing `except NIMError` handlers still catch
+# embedding failures after the move to backend.embeddings.
+NIMError = EmbeddingError
 
 
 # ── Lazy clients ─────────────────────────────────────────────────
-_groq_client  = None   # chat
-_nvidia_client = None  # embeddings
+_groq_client = None   # chat
 
 
 def _get_groq_client():
@@ -39,32 +48,25 @@ def _get_groq_client():
         if not GROQ_API_KEY:
             raise NIMError(
                 "GROQ_API_KEY is not set. Add it to .env "
-                "(get a key at https://console.groq.com)."
+                "(get a free key at https://console.groq.com)."
             )
         from openai import OpenAI
-        _groq_client = OpenAI(base_url=GROQ_BASE_URL, api_key=GROQ_API_KEY)
+        # An explicit timeout and retry budget: a hung LLM call previously had
+        # no ceiling at all, so a slow upstream would pin a request open
+        # indefinitely.
+        _groq_client = OpenAI(
+            base_url=GROQ_BASE_URL,
+            api_key=GROQ_API_KEY,
+            timeout=CHAT_TIMEOUT,
+            max_retries=CHAT_MAX_RETRIES,
+        )
         log.info("Groq client initialised (%s, model=%s)", GROQ_BASE_URL, GROQ_CHAT_MODEL)
     return _groq_client
 
 
-def _get_nvidia_client():
-    """Shared OpenAI-SDK client pointed at NVIDIA NIM (embeddings only)."""
-    global _nvidia_client
-    if _nvidia_client is None:
-        if not NVIDIA_API_KEY:
-            raise NIMError(
-                "NVIDIA_API_KEY is not set. Add it to .env "
-                "(get a key at https://build.nvidia.com)."
-            )
-        from openai import OpenAI
-        _nvidia_client = OpenAI(base_url=NIM_BASE_URL, api_key=NVIDIA_API_KEY)
-        log.info("NVIDIA NIM client initialised (%s)", NIM_BASE_URL)
-    return _nvidia_client
-
-
-# Keep backward compat for any code that calls get_client() or _require_key()
+# Keep get_client() for any legacy callers (returns None — not used for embeddings anymore)
 def get_client():
-    return _get_nvidia_client()
+    return _get_groq_client()
 
 
 # ── Chat (Groq) ─────────────────────────────────────────────────
@@ -98,45 +100,22 @@ def chat_stream(messages: list[dict]):
             yield delta
 
 
-# ── Embeddings ───────────────────────────────────────────────────
+# ── Embeddings (Ollama) ──────────────────────────────────────────
 
-def embed(texts: list[str], input_type: InputType) -> list[list[float]]:
+def embed(texts: list[str], input_type: InputType = "passage") -> list[list[float]]:
     """
-    Embed a batch of texts with nemotron-3-embed-1b.
+    Embed a batch of texts with the configured provider.
 
-    This model is ASYMMETRIC: documents must be embedded with
-    input_type="passage" and search queries with input_type="query".
-    Mixing them up quietly wrecks retrieval quality, so the argument is
-    required rather than defaulted.
+    `input_type` is significant and is NOT a compatibility no-op: 'passage'
+    selects the document-side task type/prefix and 'query' the query-side one.
+    Getting it wrong degrades retrieval with no visible symptom.
 
-    `input_type` and `truncate` are not part of the OpenAI schema, so they ride
-    along in extra_body as top-level JSON fields.
+    Raises NIMError (an alias of EmbeddingError) if the provider is
+    unreachable or misconfigured.
     """
-    if not texts:
-        return []
-
-    resp = get_client().embeddings.create(
-        model=NIM_EMBED_MODEL,
-        input=texts,
-        encoding_format="float",
-        extra_body={"input_type": input_type, "truncate": EMBED_TRUNCATE},
-    )
-    # The API may return items out of order; sort by index to be safe.
-    ordered = sorted(resp.data, key=lambda d: d.index)
-    vectors = [d.embedding for d in ordered]
-
-    if vectors and len(vectors[0]) != EMBED_DIM:
-        log.warning(
-            "Unexpected embedding dimension %d (expected %d) — the vector "
-            "index and query embeddings must agree.",
-            len(vectors[0]), EMBED_DIM,
-        )
-    return vectors
+    return _embed_impl(texts, input_type)
 
 
-def embed_one(text: str, input_type: InputType) -> list[float]:
+def embed_one(text: str, input_type: InputType = "passage") -> list[float]:
     """Convenience wrapper for a single string."""
-    vectors = embed([text], input_type)
-    if not vectors:
-        raise NIMError("Embedding request returned no vectors.")
-    return vectors[0]
+    return _embed_one_impl(text, input_type)

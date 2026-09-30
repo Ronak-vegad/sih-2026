@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { 
-  User, 
   Copy, 
   Check, 
   FileText, 
@@ -11,7 +10,9 @@ import {
   HelpCircle,
   AlertTriangle,
   ShieldCheck,
-  FileCheck
+  FileCheck,
+  ThumbsUp,
+  ThumbsDown
 } from 'lucide-react';
 import { renderMarkdownToNodes } from '../utils/markdown';
 
@@ -22,7 +23,7 @@ const ROUTE_LABELS = {
   out_of_scope: { label: 'Non-BIS Regulatory Inquiry', icon: <AlertTriangle size={12} /> },
 };
 
-export default function MessageItem({ message }) {
+export default function MessageItem({ message, messageIndex, onFeedback }) {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === 'user';
 
@@ -31,6 +32,12 @@ export default function MessageItem({ message }) {
     navigator.clipboard.writeText(message.content);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleFeedbackClick = (vote) => {
+    if (messageIndex !== null && onFeedback) {
+      onFeedback(messageIndex, vote);
+    }
   };
 
   if (isUser) {
@@ -84,25 +91,39 @@ export default function MessageItem({ message }) {
               <span>OFFICIAL REGULATORY CITATIONS &amp; CLAUSE SOURCES</span>
             </div>
             <div className="citations-grid">
-              {message.sources.map((src, idx) => (
-                <a
-                  key={idx}
-                  href={src.url || 'https://www.bis.gov.in'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="citation-card"
-                  title="Open official BIS document"
-                >
-                  <div className="citation-title-row">
-                    <span className="citation-title">{src.title}</span>
-                    <ExternalLink size={12} className="citation-ext-icon" />
-                  </div>
-                  <div className="citation-meta-row">
-                    <span className="citation-type-badge">{src.category || 'BIS Publication'}</span>
-                    <span className="citation-source-label">Official Source · bis.gov.in</span>
-                  </div>
-                </a>
-              ))}
+              {message.sources.map((src, idx) => {
+                const simPct = src.similarity > 0 ? Math.round(src.similarity * 100) : null;
+                return (
+                  <a
+                    key={idx}
+                    href={src.url || 'https://www.bis.gov.in'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="citation-card"
+                    title="Open official BIS document"
+                  >
+                    <div className="citation-title-row">
+                      <span className="citation-title">{src.title}</span>
+                      <ExternalLink size={12} className="citation-ext-icon" />
+                    </div>
+                    <div className="citation-meta-row">
+                      <span className="citation-type-badge">{src.category || 'BIS Publication'}</span>
+                      <span className="citation-source-label">Official Source · bis.gov.in</span>
+                    </div>
+                    {simPct !== null && (
+                      <div className="citation-sim-bar-wrapper" title={`${simPct}% semantic match`}>
+                        <div
+                          className="citation-sim-bar-fill"
+                          style={{
+                            width: `${simPct}%`,
+                            backgroundColor: simPct >= 60 ? 'var(--success-green)' : simPct >= 40 ? '#f59e0b' : '#94a3b8',
+                          }}
+                        />
+                      </div>
+                    )}
+                  </a>
+                );
+              })}
             </div>
           </div>
         )}
@@ -131,6 +152,30 @@ export default function MessageItem({ message }) {
               <AlertTriangle size={12} />
               <span>Verify at bis.gov.in</span>
             </span>
+          )}
+
+          {/* Feedback Buttons — only on finalized messages */}
+          {messageIndex !== null && onFeedback && (
+            <div className="feedback-btn-group">
+              <button
+                type="button"
+                className={`feedback-btn ${message.feedback === 'up' ? 'active-up' : ''}`}
+                onClick={() => handleFeedbackClick('up')}
+                title="Helpful answer"
+                aria-label="Mark answer as helpful"
+              >
+                <ThumbsUp size={13} />
+              </button>
+              <button
+                type="button"
+                className={`feedback-btn ${message.feedback === 'down' ? 'active-down' : ''}`}
+                onClick={() => handleFeedbackClick('down')}
+                title="Unhelpful answer"
+                aria-label="Mark answer as unhelpful"
+              >
+                <ThumbsDown size={13} />
+              </button>
+            </div>
           )}
 
           {/* Copy Button */}

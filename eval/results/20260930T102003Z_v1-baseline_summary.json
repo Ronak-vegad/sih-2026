@@ -1,0 +1,100 @@
+{
+  "total_questions": 110,
+  "errors": 0,
+  "retrieval_recall_at_k": 0.0,
+  "mrr": 0.0,
+  "faithfulness": 1.0,
+  "answer_relevance": 0.4253,
+  "citation_accuracy": 1.0,
+  "refusal_accuracy": 0.1818,
+  "route_accuracy": 0.6364,
+  "mean_latency_s": 3.6157,
+  "p95_latency_s": 4.495,
+  "by_category": {
+    "product_standard": {
+      "count": 19,
+      "refusal_accuracy": 0.0,
+      "answer_relevance": 0.6471,
+      "route_accuracy": 0.9474
+    },
+    "mandatory_check": {
+      "count": 8,
+      "refusal_accuracy": 0.0,
+      "answer_relevance": 0.0,
+      "route_accuracy": 0.375
+    },
+    "factual_faq": {
+      "count": 18,
+      "refusal_accuracy": 0.0,
+      "answer_relevance": 0.0833,
+      "route_accuracy": 0.7222
+    },
+    "certification_procedure": {
+      "count": 15,
+      "refusal_accuracy": 0.0,
+      "answer_relevance": 0.1667,
+      "route_accuracy": 0.6
+    },
+    "consumer_guidance": {
+      "count": 10,
+      "refusal_accuracy": 0.0,
+      "answer_relevance": 0.3333,
+      "route_accuracy": 0.8
+    },
+    "out_of_scope": {
+      "count": 11,
+      "refusal_accuracy": 1.0,
+      "answer_relevance": 1.0,
+      "route_accuracy": 0.4545
+    },
+    "trick": {
+      "count": 15,
+      "refusal_accuracy": 0.6,
+      "answer_relevance": 1.0,
+      "route_accuracy": 0.4
+    },
+    "cross_standard": {
+      "count": 5,
+      "refusal_accuracy": 0.0,
+      "answer_relevance": 0.0,
+      "route_accuracy": 0.6
+    },
+    "clause_lookup": {
+      "count": 4,
+      "refusal_accuracy": 0.0,
+      "answer_relevance": 0.0,
+      "route_accuracy": 0.5
+    },
+    "hinglish": {
+      "count": 5,
+      "refusal_accuracy": 0.0,
+      "answer_relevance": 0.0,
+      "route_accuracy": 0.6
+    }
+  },
+  "by_difficulty": {
+    "easy": {
+      "count": 28,
+      "answer_relevance": 0.4444,
+      "faithfulness": 1.0
+    },
+    "medium": {
+      "count": 39,
+      "answer_relevance": 0.4194,
+      "faithfulness": 1.0
+    },
+    "hard": {
+      "count": 43,
+      "answer_relevance": 0.4138,
+      "faithfulness": 1.0
+    }
+  },
+  "run": {
+    "timestamp": "20260930T102003Z",
+    "tag": "v1-baseline",
+    "category_filter": null,
+    "endpoint": "http://localhost:8000/chat",
+    "question_count": 110,
+    "llm_judge": false
+  }
+}

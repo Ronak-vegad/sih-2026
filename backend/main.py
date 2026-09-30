@@ -8,8 +8,10 @@ Endpoints:
 """
 
 import logging
+import os
 import sys
 import json
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 # Allow running from project root
@@ -38,18 +40,8 @@ logging.basicConfig(
 )
 log = logging.getLogger("bis.api")
 
-app = FastAPI(
-    title="BIS Intelligent Assistant API",
-    description=(
-        "RAG-based Q&A for Bureau of Indian Standards — "
-        "zero-hallucination answers grounded in official BIS sources."
-    ),
-    version="1.0.0",
-)
-
-
-@app.on_event("startup")
-async def _pre_warm():
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
     """Pre-build the BM25 index and warm the ChromaDB connection at startup.
 
     Without this, the very first query pays a cold-start penalty of several
@@ -57,7 +49,6 @@ async def _pre_warm():
     to startup means users never feel that delay.
     """
     import asyncio
-    from backend.retrieval import get_collection
     try:
         loop = asyncio.get_event_loop()
         # Run blocking I/O in a thread so startup doesn't block the event loop
@@ -66,6 +57,7 @@ async def _pre_warm():
         log.info("Pre-warm initiated in background...")
     except Exception as exc:
         log.warning("Pre-warm failed to start: %s", exc)
+    yield  # Application runs here
 
 
 def _warm_retrieval():
@@ -73,11 +65,29 @@ def _warm_retrieval():
     get_collection()   # opens ChromaDB
     _build_bm25()      # builds BM25 from the corpus
 
+
+app = FastAPI(
+    title="BIS Intelligent Assistant API",
+    description=(
+        "RAG-based Q&A for Bureau of Indian Standards — "
+        "zero-hallucination answers grounded in official BIS sources."
+    ),
+    version="1.0.0",
+    lifespan=_lifespan,
+)
+
+# ALLOW_ORIGIN env var controls which frontend origins may call the API.
+# Dev default: localhost (Vite dev server on :3000, plain HTTP server on :5173).
+# Production: set ALLOW_ORIGIN=https://your-app.vercel.app on Render.
+_raw_origin = os.getenv("ALLOW_ORIGIN", "http://localhost:3000")
+_allow_origins = [o.strip() for o in _raw_origin.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # tighten for production
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_allow_origins,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
+    allow_credentials=False,
 )
 
 # ── Request / Response models ────────────────────────────────────
@@ -114,7 +124,8 @@ class ChatResponse(BaseModel):
 RETRIEVAL_DOWN_RESPONSE = (
     "I couldn't search my document index just now, so I won't guess an answer.\n\n"
     "If you are running this locally, check that the index has been built "
-    "(`python -m backend.ingest`) and that `NVIDIA_API_KEY` is set in `.env`. "
+    "(`python -m backend.ingest`) and that Ollama is running "
+    "(`ollama serve` with `nomic-embed-text` pulled). "
     "Meanwhile, official information is available at "
     "[bis.gov.in](https://www.bis.gov.in) or BIS CARE **1800-11-4000**."
 )
@@ -125,6 +136,16 @@ OUT_OF_SCOPE_RESPONSE = (
     "Your question appears to be outside my scope. Please visit "
     "[bis.gov.in](https://www.bis.gov.in) for official information, "
     "or call the BIS CARE helpline at **1800-11-4000**."
+)
+
+GREETING_RESPONSE = (
+    "Hello! I'm the BIS Standards Assistant. \ud83d\udc4b\n\n"
+    "I can help you with:\n"
+    "- Finding the **Indian Standard (IS)** for any product\n"
+    "- Checking **QCO / CRS** mandatory certification status\n"
+    "- Explaining **BIS certification procedures** (ISI mark, hallmarking, etc.)\n"
+    "- Answering general **BIS FAQs**\n\n"
+    "What would you like to know?"
 )
 
 
@@ -158,6 +179,18 @@ async def chat(req: ChatRequest):
             used_nim       = False,
             confidence     = 0.0,
             carried_terms  = carried_terms,
+        )
+
+    if route == "greeting":
+        return ChatResponse(
+            answer         = GREETING_RESPONSE,
+            sources        = [],
+            route          = route,
+            low_confidence = False,
+            stripped_is    = [],
+            used_nim       = False,
+            confidence     = 1.0,
+            carried_terms  = [],
         )
 
     # 3. Structured QCO lookup. Run it for every in-scope route: questions like
@@ -288,6 +321,16 @@ async def chat_stream(req: ChatRequest):
     route = classify_query(search_query)
 
     async def event_generator():
+        # ── Greeting fast-path ─────────────────────────────────
+        if route == "greeting":
+            yield _sse({"type": "meta", "route": route, "confidence": 1.0,
+                        "low_confidence": False, "sources": [],
+                        "stripped_is": [], "used_nim": False,
+                        "carried_terms": []})
+            yield _sse({"type": "token", "text": GREETING_RESPONSE})
+            yield _sse({"type": "done"})
+            return
+
         # ── Out-of-scope fast-path ─────────────────────────────
         if route == "out_of_scope":
             yield _sse({"type": "meta", "route": route, "confidence": 0.0,
@@ -370,7 +413,7 @@ async def chat_stream(req: ChatRequest):
         )
 
         messages = (
-            [{"role": "system", "content": f"{THINKING_TOGGLE}\n\n{SYSTEM_PROMPT}"}]
+            [{"role": "system", "content": (f"{THINKING_TOGGLE}\n\n{SYSTEM_PROMPT}" if THINKING_TOGGLE else SYSTEM_PROMPT)}]
             + [{"role": m["role"], "content": m["content"]}
                for m in (history_msgs or [])
                if m.get("role") in ("user", "assistant") and m.get("content")
@@ -406,21 +449,40 @@ async def chat_stream(req: ChatRequest):
 
         # ── Stream tokens ─────────────────────────────────────
         full_text = ""
+        in_think_block = False
         try:
             for delta in nim.chat_stream(messages):
                 full_text += delta
-                # Strip <think> tags on the fly
-                clean = delta
-                if "<think>" in full_text or "</think>" in full_text:
-                    clean = ""
-                yield _sse({"type": "token", "text": clean})
+                # Strip <think>...</think> on the fly using open/close tracking
+                clean_delta = ""
+                remainder = delta
+                while remainder:
+                    if in_think_block:
+                        # Look for closing tag
+                        close_pos = remainder.find("</think>")
+                        if close_pos >= 0:
+                            in_think_block = False
+                            remainder = remainder[close_pos + len("</think>"):]
+                        else:
+                            break  # still inside think block, discard rest
+                    else:
+                        # Look for opening tag
+                        open_pos = remainder.find("<think>")
+                        if open_pos >= 0:
+                            clean_delta += remainder[:open_pos]
+                            in_think_block = True
+                            remainder = remainder[open_pos + len("<think>"):]
+                        else:
+                            clean_delta += remainder
+                            break
+                if clean_delta:
+                    yield _sse({"type": "token", "text": clean_delta})
         except Exception as exc:
             log.error("NIM stream error: %s", exc)
             yield _sse({"type": "error", "message": str(exc)})
             return
 
         # ── Post-process: guardrail (for stripped_is final update) ─
-        from backend.generation import strip_hallucinated_is_numbers, strip_thinking
         full_text = strip_thinking(full_text)
         _, stripped_is = strip_hallucinated_is_numbers(full_text, chunks, qco_rows)
 
@@ -457,8 +519,8 @@ async def health():
         status = f"chroma_error: {e}"
 
     from backend.config import (
-        NVIDIA_API_KEY, GROQ_API_KEY, QCO_DB_PATH,
-        GROQ_CHAT_MODEL, NIM_EMBED_MODEL, EMBED_DIM,
+        GROQ_API_KEY, QCO_DB_PATH,
+        GROQ_CHAT_MODEL, OLLAMA_EMBED_MODEL, OLLAMA_BASE_URL, EMBED_DIM,
     )
     import sqlite3
     try:
@@ -468,16 +530,27 @@ async def health():
     except Exception:
         qco_count = 0
 
+    # Data-quality report for the structured table. Exposed because the
+    # previous corruption (2,139 of 2,208 rows unusable, every product paired
+    # with the wrong standard) was invisible from the outside: the row count
+    # looked healthy and every answer looked confident.
+    from backend.retrieval import qco_quality_report
+    try:
+        qco_quality = qco_quality_report()
+    except Exception as e:
+        qco_quality = {"error": str(e)}
+
     return {
         "status":           status,
         "chroma_chunks":    count,
         "qco_table_rows":   qco_count,
-        "provider":         "Groq + NVIDIA NIM",
+        "qco_quality":      qco_quality,
+        "provider":         "Groq (chat) + Ollama (embeddings)",
         "llm_model":        GROQ_CHAT_MODEL,
-        "embed_model":      NIM_EMBED_MODEL,
+        "embed_model":      OLLAMA_EMBED_MODEL,
         "embed_dim":        EMBED_DIM,
         "rerank_model":     None,
-        "nvidia_key_set":   bool(NVIDIA_API_KEY),
+        "ollama_url":       OLLAMA_BASE_URL,
         "groq_key_set":     bool(GROQ_API_KEY),
     }
 

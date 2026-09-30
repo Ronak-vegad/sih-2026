@@ -213,7 +213,6 @@ export default function LandingPage({ onStartChat, healthStatus }) {
         </div>
       </section>
 
-      {/* Institutional Repository Metrics Strip */}
       <section className="portal-metrics-strip">
         <div className="portal-container metrics-inner">
           <div className="metric-box">
@@ -221,7 +220,7 @@ export default function LandingPage({ onStartChat, healthStatus }) {
             <div className="metric-label">Indexed Standard Documents</div>
           </div>
           <div className="metric-box">
-            <div className="metric-num">{healthStatus?.qco_table_rows || '260+'}</div>
+            <div className="metric-num">{healthStatus?.qco_table_rows?.toLocaleString() || '2,208+'}</div>
             <div className="metric-label">Active Mandatory QCO Records</div>
           </div>
           <div className="metric-box">
