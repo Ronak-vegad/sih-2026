@@ -39,8 +39,9 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:${PORT}/health || exit 1
 
-# Start: build the vector index first, then serve.
-# Ingest is idempotent — safe to re-run; skips if index already exists.
-# API keys (GOOGLE_API_KEY etc.) are injected by Render at runtime,
-# which is why ingest runs here rather than during docker build.
-CMD sh -c "python -m backend.ingest && uvicorn backend.main:app --host 0.0.0.0 --port ${PORT} --workers 1"
+# Startup sequence:
+#   1. Scrape BIS website  → generates data/raw_documents.json
+#   2. Ingest + embed      → builds ChromaDB vector index  (needs GOOGLE_API_KEY)
+#   3. Start API server
+# Steps 1-2 are skipped on subsequent deploys if Render mounts a persistent disk.
+CMD sh -c "python -m scraper.bis_supplement && EMBED_BATCH_SLEEP=10 python -m backend.ingest && uvicorn backend.main:app --host 0.0.0.0 --port ${PORT} --workers 1"
