@@ -122,12 +122,9 @@ class ChatResponse(BaseModel):
 
 
 RETRIEVAL_DOWN_RESPONSE = (
-    "I couldn't search my document index just now, so I won't guess an answer.\n\n"
-    "If you are running this locally, check that the index has been built "
-    "(`python -m backend.ingest`) and that Ollama is running "
-    "(`ollama serve` with `nomic-embed-text` pulled). "
-    "Meanwhile, official information is available at "
-    "[bis.gov.in](https://www.bis.gov.in) or BIS CARE **1800-11-4000**."
+    "I'm temporarily unable to search my document index. Please try again in a moment.\n\n"
+    "For immediate assistance, official BIS information is available at "
+    "[bis.gov.in](https://www.bis.gov.in) or call BIS CARE at **1800-11-4000**."
 )
 
 OUT_OF_SCOPE_RESPONSE = (

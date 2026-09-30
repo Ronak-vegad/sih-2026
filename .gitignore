@@ -26,11 +26,12 @@ ENV/
 .env
 !.env.example
 
-# ── Generated / scraped data (too large, rebuilt by scripts) ──
+# Generated / scraped data — keep index + DB in git so Render can use them
+# Only exclude large raw PDFs and log files
 data/pdfs/
-data/chroma_db/
-data/raw_documents.json
-data/qco_structured.db
+# data/chroma_db/       ← committed: Render has no persistent disk (free plan)
+# data/raw_documents.json ← committed: needed by /ingest admin endpoint
+# data/qco_structured.db  ← committed: needed for structured QCO lookup
 data/qco_structured.csv
 data/*.log
 data/supplement.log

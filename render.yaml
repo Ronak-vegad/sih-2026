@@ -6,14 +6,11 @@ services:
     plan: free
     autoDeploy: true
 
-    # Step 1: install deps. Step 2: build the vector index before server starts.
-    # The ingest script is idempotent — safe to re-run on every deploy.
-    # EMBED_BATCH_SLEEP is lowered here; Render's network is fast enough that
-    # the free Gemini tier rarely 429s on a clean rebuild.
-    buildCommand: >
-      pip install -r requirements.txt &&
-      python -m scraper.bis_supplement &&
-      EMBED_BATCH_SLEEP=10 python -m backend.ingest
+    # The vector index (data/chroma_db/) and QCO database (data/qco_structured.db)
+    # are committed to the repo and ship with the deployment.
+    # Re-indexing is NOT run here because Render free plan has no persistent disk
+    # (any files written during build are wiped on the next restart).
+    buildCommand: pip install -r requirements.txt
 
     startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT --workers 1
 
