@@ -77,6 +77,15 @@ _GREETING_PATTERNS = [
     r"^(thanks|thank\s+you|thank\s+u|thx|ty|tysm|ty\s+so\s+much)[\.!?]*$",
     r"^(bye|goodbye|see\s+you|cya|take\s+care)[\.!?]*$",
     r"^(ok|okay|sure|got\s+it|understood|alright|cool|great|nice|wow|awesome)[\.!?]*$",
+    # Casual "how are you" style questions — must NOT reach RAG
+    r"^(how\s+are\s+you|how\s+r\s+u|hru)[\.!?]*$",
+    r"^(what'?s?\s+up|wassup|wazzup)[\.!?]*$",
+    r"^(how'?s?\s+it\s+going|how\s+is\s+it\s+going)[\.!?]*$",
+    r"^(how\s+do\s+you\s+do)[\.!?]*$",
+    r"^(who\s+are\s+you|what\s+are\s+you)[\.!?]*$",
+    r"^(are\s+you\s+(a\s+)?(bot|ai|robot|assistant|human))[\.!?]*$",
+    r"^(what\s+(can|do)\s+you\s+do)[\.!?]*$",
+    r"^(help|help\s+me)[\.!?]*$",
 ]
 
 
